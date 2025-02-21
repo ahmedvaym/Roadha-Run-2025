@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Running Database</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+
+    .container {
+      width: 80%;
+      max-width: 900px;
+      margin: 20px auto;
+      background-color: #fff;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    h1, h2 {
+      text-align: center;
+    }
+
+    form {
+      display: grid;
+      gap: 10px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    input[type="text"], input[type="number"], input[type="datetime-local"] {
+      padding: 8px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    table, th, td {
+      border: 1px solid #ddd;
+    }
+
+    th, td {
+      padding: 8px;
+      text-align: center;
+    }
+
+    select {
+      padding: 8px;
+      font-size: 14px;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Daily Running Log</h1>
+    
+    <form id="runningForm">
+      <div class="form-group">
+        <label for="date">Select Date and Time:</label>
+        <input type="datetime-local" id="date" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="name">Name:</label>
+        <input type="text" id="name" placeholder="Enter your name" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="contact">Contact:</label>
+        <input type="text" id="contact" placeholder="Enter your contact" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="distance">Running Distance (km):</label>
+        <input type="number" id="distance" placeholder="Enter distance" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="pace">Running Pace (min/km):</label>
+        <input type="number" id="pace" placeholder="Enter pace" required>
+      </div>
+      
+      <button type="submit">Add</button>
+    </form>
+
+    <h2>Filter by Name</h2>
+    <select id="nameFilter">
+      <option value="">All</option>
+      <!-- Dynamic Name Options will be added here -->
+    </select>
+
+    <h2>Running Log</h2>
+    <table id="logTable">
+      <thead>
+        <tr>
+          <th>Date and Time</th>
+          <th>Name</th>
+          <th>Contact</th>
+          <th>Distance (km)</th>
+          <th>Pace (min/km)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Data will appear here -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    // Import Firebase modules
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js';
+    import { getDatabase, ref, push, set, onChildAdded } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js';
+
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyClxIK0xiQh4XGZTgYuRHqq5xNT7iIGYjw",
+      authDomain: "runninglog-f16f7.firebaseapp.com",
+      projectId: "runninglog-f16f7",
+      storageBucket: "runninglog-f16f7.firebasestorage.app",
+      messagingSenderId: "143536384226",
+      appId: "1:143536384226:web:d35c56b74cfd62dc06d6bb",
+      measurementId: "G-2Z7W4TFCZ4"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+
+    // Store names dynamically
+    const nameSet = new Set();
+
+    // Handle form submission
+    document.getElementById('runningForm').addEventListener('submit', function(event) {
+      event.preventDefault();
+
+      const date = document.getElementById('date').value;
+      const name = document.getElementById('name').value;
+      const contact = document.getElementById('contact').value;
+      const distance = document.getElementById('distance').value;
+      const pace = document.getElementById('pace').value;
+
+      if (date && name && contact && distance && pace) {
+        // Save data to Firebase
+        const runningLogRef = ref(database, 'runningLogs');
+        const newEntry = push(runningLogRef);
+        set(newEntry, {
+          date: new Date(date).toLocaleString(),
+          name: name,
+          contact: contact,
+          distance: distance,
+          pace: pace
+        });
+
+        // Add name to name set for dynamic dropdown
+        nameSet.add(name);
+        updateNameFilter();
+
+        // Add data to table
+        const table = document.getElementById('logTable').getElementsByTagName('tbody')[0];
+        const row = table.insertRow();
+
+        row.innerHTML = `
+          <td>${new Date(date).toLocaleString()}</td>
+          <td>${name}</td>
+          <td>${contact}</td>
+          <td>${distance}</td>
+          <td>${pace}</td>
+        `;
+
+        // Clear form fields
+        document.getElementById('runningForm').reset();
+      }
+    });
+
+    // Fetch data from Firebase
+    const runningLogRef = ref(database, 'runningLogs');
+    onChildAdded(runningLogRef, function(snapshot) {
+      const data = snapshot.val();
+      const table = document.getElementById('logTable').getElementsByTagName('tbody')[0];
+      const row = table.insertRow();
+
+      row.innerHTML = `
+        <td>${data.date}</td>
+        <td>${data.name}</td>
+        <td>${data.contact}</td>
+        <td>${data.distance}</td>
+        <td>${data.pace}</td>
+      `;
+
+      // Add name to name set for dynamic dropdown
+      nameSet.add(data.name);
+      updateNameFilter();
+    });
+
+    // Function to update the name filter dropdown
+    function updateNameFilter() {
+      const nameFilter = document.getElementById('nameFilter');
+      nameFilter.innerHTML = `<option value="">All</option>`; // Reset the dropdown
+      nameSet.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        nameFilter.appendChild(option);
+      });
+
+      // Add event listener to filter by selected name
+      nameFilter.addEventListener('change', function() {
+        filterTableByName(this.value);
+      });
+    }
+
+    // Function to filter the table based on selected name
+    function filterTableByName(selectedName) {
+      const rows = document.getElementById('logTable').getElementsByTagName('tbody')[0].rows;
+      for (let row of rows) {
+        const nameCell = row.cells[1].textContent;
+        if (selectedName === "" || nameCell === selectedName) {
+          row.style.display = "";  // Show row
+        } else {
+          row.style.display = "none";  // Hide row
+        }
+      }
+    }
+  </script>
+
+</body>
+</html>
